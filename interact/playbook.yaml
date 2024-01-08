@@ -1,0 +1,53 @@
+- name: Setup interact.leito.tech
+  hosts: localhost
+  become_user: root
+  tasks:
+    - name: Download blackarch
+      become: false
+      ansible.builtin.get_url:
+        url: https://blackarch.org/strap.sh
+        checksum: sha1:3f121404fd02216a053f7394b8dab67f105228e3
+        dest: /var/tmp/blackarch.sh
+        mode: '+x'
+
+    - name: Install blackarch
+      become: true
+      ansible.builtin.script: /var/tmp/blackarch.sh
+
+    - name: Install packages
+      become: true
+      community.general.pacman:
+        name:
+          - go
+          - metasploit
+        state: present
+
+    - name: Download Sliver C2 Installer
+      become: false
+      ansible.builtin.get_url:
+        url: https://sliver.sh/install
+        dest: /var/tmp/sliver.sh
+        mode: '+x'
+
+    - name: Install Sliver C2
+      become: true
+      ansible.builtin.script: /var/tmp/sliver.sh
+
+    - name: Check that pdtm installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/pdtm
+      register: pdtm_installed
+
+    - name: Install pdtm
+      become: true
+      environment:
+        GOBIN: /usr/local/bin/
+      ansible.builtin.command: go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+      changed_when: true
+      when: pdtm_installed.stat.exists
+
+    - name: Install ProjectDiscovery Projects
+      become: true
+      ansible.builtin.command: /usr/local/bin/pdtm -ia -ip
+      register: pd_installed
+      changed_when: 'pd_installed.rc == 0'
