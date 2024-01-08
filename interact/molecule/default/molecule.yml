@@ -11,3 +11,5 @@ provisioner:
     host_vars:
       instance:
         ansible_user: root
+  env:
+    ANSIBLE_VERBOSITY: 1
