@@ -1,17 +1,30 @@
 - name: Setup interact.leito.tech
-  hosts: localhost
-  become_user: root
-  become: true
+  hosts: '{{ pb_hosts | default("all") }}'
   tasks:
+    - name: Rolling update
+      community.general.pacman:
+        upgrade: true
+
     - name: Download blackarch
       ansible.builtin.get_url:
         url: https://blackarch.org/strap.sh
         checksum: sha1:3f121404fd02216a053f7394b8dab67f105228e3
-        dest: /var/tmp/blackarch.sh
+        dest: /tmp/blackarch.sh
         mode: '+x'
 
     - name: Install blackarch
-      ansible.builtin.script: /var/tmp/blackarch.sh
+      ansible.builtin.expect:
+        command: /tmp/blackarch.sh
+        creates: /etc/pacman.d/blackarch-mirrorlist
+        responses:
+          '[Y/n]': Y
+
+    - name: Update keyrings
+      community.general.pacman:
+        name:
+          - blackarch-keyring
+          - archlinux-keyring
+        update_cache: true
 
     - name: Install packages
       community.general.pacman:
@@ -23,11 +36,11 @@
     - name: Download Sliver C2 Installer
       ansible.builtin.get_url:
         url: https://sliver.sh/install
-        dest: /var/tmp/sliver.sh
+        dest: /tmp/sliver.sh
         mode: '+x'
 
     - name: Install Sliver C2
-      ansible.builtin.script: /var/tmp/sliver.sh
+      ansible.builtin.script: /tmp/sliver.sh
 
     - name: Check that pdtm installed
       ansible.builtin.stat:
