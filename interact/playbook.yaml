@@ -5,6 +5,11 @@
       community.general.pacman:
         upgrade: true
 
+    - name: Install pexpect
+      community.general.pacman:
+        name:
+          - python-pexpect
+
     - name: Download blackarch
       ansible.builtin.get_url:
         url: https://blackarch.org/strap.sh
@@ -19,28 +24,12 @@
         responses:
           '[Y/n]': Y
 
-    - name: Update keyrings
-      community.general.pacman:
-        name:
-          - blackarch-keyring
-          - archlinux-keyring
-        update_cache: true
-
     - name: Install packages
       community.general.pacman:
         name:
           - go
           - metasploit
         state: present
-
-    - name: Download Sliver C2 Installer
-      ansible.builtin.get_url:
-        url: https://sliver.sh/install
-        dest: /tmp/sliver.sh
-        mode: '+x'
-
-    - name: Install Sliver C2
-      ansible.builtin.script: /tmp/sliver.sh
 
     - name: Check that pdtm installed
       ansible.builtin.stat:
@@ -51,10 +40,30 @@
       environment:
         GOBIN: /usr/local/bin/
       ansible.builtin.command: go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
-      changed_when: true
-      when: pdtm_installed.stat.exists
+      register: pdtm_install
+      changed_when: 'pdtm_install.rc == 0'
+      when: 'pdtm_installed.stat.exists == 0'
 
     - name: Install ProjectDiscovery Projects
       ansible.builtin.command: /usr/local/bin/pdtm -ia -ip
       register: pd_installed
-      changed_when: 'pd_installed.rc == 0'
+      changed_when: 'pd_installed.stderr == "interactsh-server: already installed"'
+
+    - name: Download Sliver C2 Installer
+      ansible.builtin.get_url:
+        url: https://sliver.sh/install
+        dest: /tmp/sliver.sh
+        mode: '+x'
+
+    - name: Install Sliver C2
+      ansible.builtin.expect:
+        command: /tmp/sliver.sh
+        creates: /usr/local/bin/sliver
+        responses:
+          '[Y/n]': Y
+
+    - name: Remove pexpect
+      community.general.pacman:
+        name:
+          - python-pexpect
+        state: absent
