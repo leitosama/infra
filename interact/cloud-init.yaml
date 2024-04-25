@@ -2,11 +2,17 @@
 package_update: true
 package_upgrade: true
 
+# ATTENTION: Paste your ssh public key herre
+ssh_authorized_keys:
+  - ssh-rsa <kek> lol@kek
 packages:
   - git
   - go
 ansible:
   install_method: distro
+  package_name: ansible
   pull:
     url: "https://github.com/leitosama/infra.git"
     playbook_name: interact/playbook.yaml
+    connection: local
+    inventory: 127.0.0.1,
