@@ -12,8 +12,8 @@
 
     - name: Download blackarch
       ansible.builtin.get_url:
-        url: https://blackarch.org/strap.sh
-        checksum: sha1:3f121404fd02216a053f7394b8dab67f105228e3
+        url: https://raw.githubusercontent.com/BlackArch/blackarch-site/master/strap.sh
+        checksum: sha1:https://raw.githubusercontent.com/BlackArch/blackarch-site/master/checksums/strap
         dest: /tmp/blackarch.sh
         mode: '+x'
 
