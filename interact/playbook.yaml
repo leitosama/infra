@@ -29,6 +29,8 @@
         name:
           - go
           - metasploit
+          - httpie
+          - gobuster
         state: present
 
     - name: Check that pdtm installed
