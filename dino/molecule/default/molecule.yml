@@ -1,0 +1,15 @@
+---
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: debian:base-devel
+    pre_build_image: false
+provisioner:
+  name: ansible
+  inventory:
+    host_vars:
+      instance:
+        ansible_user: root
+  env:
+    ANSIBLE_VERBOSITY: 1

@@ -1,0 +1,5 @@
+fqdn: dino.leito.tech
+default_user: change@me.now
+clients_path: /srv/velociraptor_clients/
+o2_client_id: <google_o2_client_id>
+o2_client_secret: <google_o2_client_secret>
