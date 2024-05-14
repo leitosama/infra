@@ -4,22 +4,22 @@
     - name: Download velociraptor
       ansible.builtin.get_url:
         url: https://github.com/Velocidex/velociraptor/releases/download/v0.72/velociraptor-v0.72.1-linux-amd64-musl
-        dest: ./velociraptor
+        dest: /tmp/velociraptor
         mode: '+x'
 
     - name: Templating veloconfig
       ansible.builtin.template:
         src: templates/veloconfig.json.j2
-        dest: ./veloconfig.json
+        dest: /tmp/veloconfig.json
         mode: '0660'
 
     - name: Generate server config
-      ansible.builtin.shell: ./velociraptor config generate --merge_file=./veloconfig.json > ./server.config.yaml
+      ansible.builtin.shell: /tmp/velociraptor config generate --merge_file=/tmp/veloconfig.json > /tmp/server.config.yaml
       args:
-        creates: ./server.config.yaml
+        creates: /tmp/server.config.yaml
 
     - name: Generate debian server package
-      ansible.builtin.shell: ./velociraptor -c ./server.config.yaml debian server --output /tmp/velociraptor_server.deb
+      ansible.builtin.shell: /tmp/velociraptor -c /tmp/server.config.yaml debian server --output /tmp/velociraptor_server.deb
       args:
         creates: /tmp/velociraptor_server.deb
 
@@ -37,20 +37,20 @@
 
     - name: Generate client config
       ansible.builtin.shell: |
-        ./velociraptor -c ./server.config.yaml config client > {{ clients_path }}/client.config.yaml
+        /tmp/velociraptor -c /tmp/server.config.yaml config client > {{ clients_path }}/client.config.yaml
       args:
         creates: "{{ clients_path }}/client.config.yaml"
 
     - name: Generate debian client
       ansible.builtin.shell: |
-        ./velociraptor -c {{ clients_path }}/client.config.yaml \
+        /tmp/velociraptor -c {{ clients_path }}/client.config.yaml \
         debian client --output {{ clients_path }}/velociraptor_client.deb
       args:
         creates: "{{ clients_path }}/velociraptor_client.deb"
 
     - name: Generate rpm client
       ansible.builtin.shell: |
-        ./velociraptor -c {{ clients_path }}/client.config.yaml \
+        /tmp/velociraptor -c {{ clients_path }}/client.config.yaml \
         debian client --output {{ clients_path }}/velociraptor_client.rpm
       args:
         creates: "{{ clients_path }}/velociraptor_client.rpm"
