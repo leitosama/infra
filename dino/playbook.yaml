@@ -23,40 +23,46 @@
       args:
         creates: /tmp/velociraptor_server.deb
 
-    - name: Make clients directory
-      ansible.builtin.file:
-        path:  "{{  clients_path  }}"
-        state: directory
-        mode: '0660'
-
     - name: Install Velociraptor debian package
       ansible.builtin.apt:
         deb: /tmp/velociraptor_server.deb
 
-    - name: Change onwer of clients directory
-      ansible.builtin.file:
-        path:  "{{  clients_path  }}"
-        state: directory
-        owner: velociraptor
-        group: velociraptor
-        mode: '0660'
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+
+    - name: Configure nginx
+      ansible.builtin.copy:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+    
+    - name: Restart nginx
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: started
 
     - name: Generate client config
       ansible.builtin.shell: |
-        /tmp/velociraptor -c /tmp/server.config.yaml config client > {{ clients_path }}/client.config.yaml
+        /tmp/velociraptor -c /tmp/server.config.yaml config client > /var/www/html/client.config.yaml
       args:
-        creates: "{{ clients_path }}/client.config.yaml"
+        creates: "/var/www/html/client.config.yaml"
 
     - name: Generate debian client
       ansible.builtin.shell: |
-        /tmp/velociraptor -c {{ clients_path }}/client.config.yaml \
-        debian client --output {{ clients_path }}/velociraptor_client.deb
+        /tmp/velociraptor -c /var/www/html/client.config.yaml \
+        debian client --output /var/www/html/velociraptor_client.deb
       args:
-        creates: "{{ clients_path }}/velociraptor_client.deb"
+        creates: "/var/www/html/velociraptor_client.deb"
 
     - name: Generate rpm client
       ansible.builtin.shell: |
-        /tmp/velociraptor -c {{ clients_path }}/client.config.yaml \
-        debian client --output {{ clients_path }}/velociraptor_client.rpm
+        /tmp/velociraptor -c /var/www/html/client.config.yaml \
+        debian client --output /var/www/html/velociraptor_client.rpm
       args:
-        creates: "{{ clients_path }}/velociraptor_client.rpm"
+        creates: "/var/www/html/velociraptor_client.rpm"
+
+    - name: Fix perms for all files in /var/www/html/
+      ansible.builtin.file:
+        path: /var/www/html/
+        recurse: true
+        mode: '0755'
