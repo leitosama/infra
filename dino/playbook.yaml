@@ -27,13 +27,19 @@
       ansible.builtin.file:
         path:  "{{  clients_path  }}"
         state: directory
-        owner: velociraptor
-        group: velociraptor
         mode: '0660'
 
     - name: Install Velociraptor debian package
       ansible.builtin.apt:
         deb: /tmp/velociraptor_server.deb
+
+    - name: Change onwer of clients directory
+      ansible.builtin.file:
+        path:  "{{  clients_path  }}"
+        state: directory
+        owner: velociraptor
+        group: velociraptor
+        mode: '0660'
 
     - name: Generate client config
       ansible.builtin.shell: |
