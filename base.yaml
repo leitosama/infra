@@ -2,8 +2,12 @@
 package_update: true
 package_upgrade: true
 
-hostname: dino
-fqdn: dino.leito.tech
+hostname: main
+fqdn: main.leito.tech
+
+packages:
+  - git
+  - zsh
 
 # ATTENTION: Paste your ssh public key herre
 users:
@@ -13,15 +17,3 @@ users:
     shell: /bin/zsh
     ssh_authorized_keys:
       - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsl2rYv+wy/rrLfk0Q10bvUuvGwtOG6oejMqR9iwQqHZ3eQ3mUwYstrMxrspOK2Ik+NcwZkO+zkTJAlq1rbKTFQhXj9yp6d6WKJkenSfa2MVmmsFxRg/gqGQzOmHiEp2ITfU3zviqNlG68blRUQotKVCLynHgERqw2XODms4mfzda0T8OI7vGp+PK4HcAjL44+ecYHYhAgxpTLBab25u2q5pWlS6OLuQFcHJS4E9U1Nz3UCEbm8lLmMAVtISTvF4FCfK51EFzpagiMt9naK/Z78wRdYQ4ytOX4qzFv6ZmuvEPdUsgXFmG65RPzkkpU0cdDS4PonPcHSyvERrEJqLgX
-packages:
-  - git
-  - zsh
-ansible:
-  install_method: distro
-  package_name: ansible
-  pull:
-    url: "https://github.com/leitosama/infra.git"
-    playbook_name: dino/playbook.yaml
-    connection: local
-    inventory: 127.0.0.1,
-    extra_vars: fqdn=dino.leito.tech default_user=change@me.now clients_path=/srv/velociraptor_clients/ o2_client_id=<google_o2_client_id> o2_client_secret=<google_o2_client_secret>
