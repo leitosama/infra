@@ -1,0 +1,34 @@
+services:
+  shadowbox:
+    image: quay.io/outline/shadowbox:stable
+    environment:
+      SB_METRICS_URL: 
+      SB_STATE_DIR: /opt/outline/persisted-state
+      SB_API_PORT: ${SB_API_PORT}
+      SB_API_PREFIX: ${SB_API_PREFIX}
+      SB_CERTIFICATE_FILE: /opt/outline/persisted-state/shadowbox-selfsigned.crt
+      SB_PRIVATE_KEY_FILE: /opt/outline/persisted-state/shadowbox-selfsigned.key
+    volumes:
+      - /opt/outline/persisted-state:/opt/outline/persisted-state
+    privileged: true
+    logging:
+      driver: local
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+      com.centurylinklabs.watchtower.scope: outline
+    network_mode: host
+    restart: always
+  
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    command: --cleanup --label-enable --scope=outline --tlsverify --interval 3600
+    restart: always
+    labels:
+      com.centurylinklabs.watchtower: true
+      com.centurylinklabs.watchtower.enable: true
+      com.centurylinklabs.watchtower.scope: "outline"
+
+    
