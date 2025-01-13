@@ -1,0 +1,31 @@
+{
+  "ignition": {
+    "version": "3.2.0"
+  },
+  "storage": {
+      "files": [
+        {
+          "path": "/etc/hostname",
+          "mode": 420,
+          "overwrite": true,
+          "contents": { "source": "data:,${hostname}" }
+        },
+        {
+          "path": "/etc/sudoers.d/${os_user}",
+          "mode": 440,
+          "contents": { "source": "data:,${os_user}%20ALL%3D%28ALL%29%20NOPASSWD%3A%20ALL" }
+        }
+    ]
+  },
+  "passwd": {
+    "users": [
+      {
+        "name": "${os_user}",
+        "shell": "/bin/bash",
+        "sshAuthorizedKeys": [
+          "${ssh_key}"
+        ]
+      }
+    ]
+  }
+}
