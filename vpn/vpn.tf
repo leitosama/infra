@@ -1,5 +1,9 @@
 terraform {
   required_providers {
+    namecheap = {
+      source = "namecheap/namecheap"
+      version = ">= 2.0.0"
+    }
     vultr = {
       source = "vultr/vultr"
       version = "2.23.1"
@@ -8,13 +12,9 @@ terraform {
 }
 
 # 1. Some inputs here
-# 1.1. Variables
 variable "LOCATION" {
+  type = list(string)
   description = "Location codes list in vultr. See https://api.vultr.com/v2/regions for details"
-}
-
-variable "VULTR_API_KEY" {
-  description = "VULTR API key"
 }
 
 variable "USERNAME" {
@@ -25,11 +25,7 @@ variable "SSH_KEY" {
   description = "OS SSH key"
 }
 
-provider "vultr" {
-    api_key = var.VULTR_API_KEY
-}
-
-# 1.2. Current data in Cloud
+variable "DOMAIN_NAME" {}
 
 # 2. Create vultr shared CPU instance
 resource "vultr_instance" "vpn" {
@@ -58,6 +54,24 @@ resource "vultr_instance" "vpn" {
     })   
 }
 
+# 3. Create domain records
+resource "namecheap_domain_records" "vpn_record" {
+  domain = var.DOMAIN_NAME
+  mode = "OVERWRITE"
+  email_type = "NONE"
+
+  dynamic "record" {
+    for_each = vultr_instance.vpn
+    content {
+      hostname = record.value.hostname
+      type = "A"
+      address = record.value.main_ip
+    }
+  }
+
+}
+
+
 # 3. Output 
 output "instance_details" {
   description = "Details of the Instance"
@@ -69,4 +83,17 @@ output "instance_details" {
       hostname = v.hostname
     }
   }
+}
+
+resource "local_file" "ansible_inventory" {
+  depends_on = [namecheap_domain_records.vpn_record]
+
+  filename = "${path.module}/inventory.ini"
+
+  content = <<EOF
+[vpn]
+%{ for instance in vultr_instance.vpn ~}
+${instance.hostname} ansible_host=${instance.main_ip}
+%{ endfor ~}
+EOF
 }
