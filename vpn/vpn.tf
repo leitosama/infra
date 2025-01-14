@@ -57,7 +57,7 @@ resource "vultr_instance" "vpn" {
 # 3. Create domain records
 resource "namecheap_domain_records" "vpn_record" {
   domain = var.DOMAIN_NAME
-  mode = "OVERWRITE"
+  mode = "MERGE"
   email_type = "NONE"
 
   dynamic "record" {
