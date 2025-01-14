@@ -17,3 +17,14 @@ terraform apply vpn.tfplan
 ```sh
 terraform destroy
 ```
+
+## Install python
+```sh
+ssh <user>@<host> 'sudo rpm-ostree install python && sudo systemctl reboot'
+```
+
+## Ansible
+```sh
+ansible -m ping --private-key=<ssh_key> -i inventory.ini vpn
+ansible-playbook --private-key=<ssh_key> -i inventory.ini outline.yaml
+```

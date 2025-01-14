@@ -93,7 +93,7 @@ resource "local_file" "ansible_inventory" {
   content = <<EOF
 [vpn]
 %{ for instance in vultr_instance.vpn ~}
-${instance.hostname} ansible_host=${instance.main_ip}
+${instance.hostname}.${var.DOMAIN_NAME} ansible_host=${instance.main_ip} ansible_user=${var.USERNAME}
 %{ endfor ~}
 EOF
 }
