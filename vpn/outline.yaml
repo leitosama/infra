@@ -3,13 +3,29 @@
   hosts: vpn
   vars:
     sb_api_port: 13337
-    random_bytes: "{{ lookup('password', '/dev/null length=16 chars=bytes') }}"
-    random_b64: "{{ random_bytes | b64encode }}"
-    sb_api_prefix: "{{ random_b64  | regex_replace('\\+', '-') | regex_replace('/', '_') | regex_replace('=', '') }}"
     outline_dir: "/opt/outline"
     persisted_state: "{{ outline_dir }}/persisted-state"
-    public_api_url: "https://{{ inventory_hostname }}:{{ sb_api_port }}/{{ sb_api_prefix }}"
   tasks:
+    - name: Generate a random password
+      ansible.builtin.set_fact:
+        random_bytes: "{{ lookup('ansible.builtin.password', '/dev/null length=16 chars=bytes') }}"
+
+    - name: URL-safe Base64 encode the random password
+      ansible.builtin.set_fact:
+        random_b64: "{{ random_bytes | b64encode }}"
+
+    - name: Convert Base64 to URL-safe Base64
+      ansible.builtin.set_fact:
+        sb_api_prefix: "{{ random_b64 | replace('+', '-') | replace('/', '_') | replace('=', '') }}"
+
+    - name: Generate public api string
+      ansible.builtin.set_fact:
+        public_api_url: "https://{{ inventory_hostname }}:{{ sb_api_port }}/{{ sb_api_prefix }}"
+
+    - name: Display Public API URL
+      ansible.builtin.debug:
+        msg: "API URL: {{ public_api_url }}"
+
     - name: Create outline dir
       ansible.builtin.file:
         path: "{{ outline_dir }}"
@@ -65,6 +81,10 @@
       changed_when: false
       ansible.builtin.shell: "openssl x509 -in {{ persisted_state }}/shadowbox-selfsigned.crt -noout -sha256 -fingerprint | sed 's/^sha256 Fingerprint=//' | tr -d :"
       register: cert_fingerprint
+
+    - name: Display fingerprint
+      ansible.builtin.debug:
+        msg: "certSha256: {{ cert_fingerprint.stdout }}"
 
     - name: Template access config
       ansible.builtin.template:
