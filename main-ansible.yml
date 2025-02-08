@@ -1,0 +1,31 @@
+- name: Basic setup for Server
+  hosts: all
+  vars:
+    user: "leito"
+  tasks:
+    - name: Setup hostname {{ inventory_hostname }}
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+    - name: Install git and zsh
+      ansible.builtin.package:
+        name:
+          - git
+          - zsh
+        state: present
+    - name: Add user
+      ansible.builtin.user:
+        name: "{{ user }}"
+        state: present
+        shell: /bin/zsh
+    - name: Change sudo for user
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "{{ user }} ALL=(ALL) NOPASSWD: ALL"
+        state: present
+        validate: 'visudo -cf %s'
+        backup: true
+    - name: Add ssh key
+      ansible.posix.authorized_key:
+        user: "{{ user }}"
+        state: present
+        key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsl2rYv+wy/rrLfk0Q10bvUuvGwtOG6oejMqR9iwQqHZ3eQ3mUwYstrMxrspOK2Ik+NcwZkO+zkTJAlq1rbKTFQhXj9yp6d6WKJkenSfa2MVmmsFxRg/gqGQzOmHiEp2ITfU3zviqNlG68blRUQotKVCLynHgERqw2XODms4mfzda0T8OI7vGp+PK4HcAjL44+ecYHYhAgxpTLBab25u2q5pWlS6OLuQFcHJS4E9U1Nz3UCEbm8lLmMAVtISTvF4FCfK51EFzpagiMt9naK/Z78wRdYQ4ytOX4qzFv6ZmuvEPdUsgXFmG65RPzkkpU0cdDS4PonPcHSyvERrEJqLgX"

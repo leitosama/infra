@@ -43,4 +43,4 @@ terraform.rc
 extra-vars.yaml
 .vscode
 
-vpn/inventory.ini
+inventory.ini
