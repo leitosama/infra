@@ -108,3 +108,8 @@
       community.docker.docker_compose_v2:
         project_src: "{{ outline_dir }}"
         state: present
+
+    - name: Enable docker service on boot
+      ansible.builtin.service:
+        name: docker
+        enabled: true
