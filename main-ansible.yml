@@ -1,11 +1,18 @@
 - name: Basic setup for Server
   hosts: all
+  become: true
   vars:
     user: "leito"
   tasks:
-    - name: Setup hostname {{ inventory_hostname }}
+    - name: Setup hostname 
       ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
+    - name: Change /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "127.0.0.1 {{ inventory_hostname }}"
+        state: present
+        backup: true
     - name: Install git and zsh
       ansible.builtin.package:
         name:
