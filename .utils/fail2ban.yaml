@@ -1,0 +1,35 @@
+- name: Install fail2ban with abuseipdb
+  become: true
+  hosts: all
+  tasks:
+    - name: Install fail2ban pkg
+      ansible.builtin.package:
+        name: fail2ban
+        state: present
+    - name: Create jail.local
+      ansible.builtin.command:
+        cmd: cp jail.conf jail.local
+        chdir: /etc/fail2ban/
+        creates: /etc/fail2ban/jail.local
+    - name: Modify jail.local
+      community.general.ini_file:
+        path: /etc/fail2ban/jail.local
+        section: sshd
+        backup: true
+        mode: 644
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+      with_items:
+        - option: "mode"
+          value: "aggressive"
+        - option: "enabled"
+          value: "true"
+        - option: action
+          value: |
+            %(action_)s
+                     %(action_abuseipdb)s[abuseipdb_apikey="{{ abuseipdb_key }}", abuseipdb_category="18,22"]
+    - name: Enable fail2ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted
+        enabled: true
