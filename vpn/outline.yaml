@@ -5,6 +5,9 @@
     sb_api_port: 13337
     outline_dir: "/opt/outline"
     persisted_state: "{{ outline_dir }}/persisted-state"
+  roles:
+    - name: geerlingguy.docker
+      when: ansible_facts['pkg_mgr'] != 'rpm-ostree'
   tasks:
     - name: Generate a random password
       ansible.builtin.set_fact:
@@ -50,6 +53,7 @@
           - python3-cryptography
           - docker-compose
       register: rpm_ostree_pkg_result
+      when: ansible_facts['pkg_mgr'] == 'rpm-ostree'
 
     - name: Reboot after ostree-pkg installed
       when:
