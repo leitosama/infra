@@ -13,5 +13,5 @@ services:
       - '51820:51820/udp'
       - '51821:51821/tcp'
     restart: unless-stopped
-    image: weejewel/wg-easy
+    image: ghcr.io/wg-easy/wg-easy:14
 
