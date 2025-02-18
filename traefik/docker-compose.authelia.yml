@@ -1,0 +1,49 @@
+services:
+  authelia:
+    image: authelia/authelia
+    volumes:
+      - ./authelia:/config
+    networks:
+      - net
+      - web
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.authelia.rule=Host(`${AUTH_HOST}`)'
+      - 'traefik.http.routers.authelia.entrypoints=https'
+      - 'traefik.http.routers.authelia.tls=true'
+      - 'traefik.http.routers.authelia.tls.certresolver=letsencrypt'
+    expose:
+      - 9091
+    restart: unless-stopped
+    depends_on:
+      - "redis"
+    healthcheck:
+      disable: true
+    environment:
+      - TZ=Asia/Novosibirsk
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - ./redis:/data
+    networks:
+      - net
+    expose:
+      - 6379
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Novosibirsk
+  traefik:
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.api.rule=Host(`{TRAEFIK_HOST}`)'
+      - 'traefik.http.routers.api.entrypoints=https'
+      - 'traefik.http.routers.api.service=api@internal'
+      - 'traefik.http.routers.api.tls=true'
+      - 'traefik.http.routers.api.tls.certresolver=letsencrypt'
+      - 'traefik.http.routers.api.middlewares=authelia@docker'
+      - 'traefik.http.middlewares.authelia.forwardauth.address=http://authelia:9091/api/verify?rd=https://{AUTH_HOST}/'
+      - 'traefik.http.middlewares.authelia.forwardauth.trustForwardHeader=true'
+      - 'traefik.http.middlewares.authelia.forwardauth.authResponseHeaders=Remote-User, Remote-Groups, Remote-Name, Remote-Email'
+    depends_on:
+      - "authelia"

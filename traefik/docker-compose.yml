@@ -1,0 +1,38 @@
+networks:
+  net:
+    external: false
+    driver: bridge
+  web:
+    name: web      
+
+services:
+  traefik:
+    image: traefik:2.11 # Apr. 29 2025
+    volumes:
+      - type: bind
+        source: ./traefik
+        target: /etc/traefik/
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - net
+      - web
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    command:
+      - '--api'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedByDefault=false'
+      - '--entrypoints.http=true'
+      - '--entrypoints.http.address=:80'
+      - '--entrypoints.http.http.redirections.entrypoint.to=https'
+      - '--entrypoints.http.http.redirections.entrypoint.scheme=https'
+      - '--entrypoints.https=true'
+      - '--entrypoints.https.address=:443'
+      - '--certificatesResolvers.letsencrypt.acme.email=${LE_ACME_EMAIL}'
+      - '--certificatesResolvers.letsencrypt.acme.storage=acme.json'
+      - '--certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=http'
+      - '--log=true'
+      - '--log.level=DEBUG'
+
