@@ -1,6 +1,11 @@
 - name: Setup interact.leito.tech
-  hosts: '{{ pb_hosts | default("all") }}'
+  hosts: all
   tasks:
+    - name: Install/upgrade archlinux-keyring before full update
+      community.general.pacman:
+        name: 
+          - archlinux-keyring
+
     - name: Rolling update
       community.general.pacman:
         upgrade: true

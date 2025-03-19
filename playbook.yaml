@@ -1,0 +1,9 @@
+- name: Basic setup for Server
+  hosts: all
+  roles:
+    - role: basic
+      become: true
+    - role: fail2ban
+      become: true
+      vars:
+        abuseipdb_key: 
