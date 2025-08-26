@@ -5,5 +5,3 @@
       become: true
     - role: fail2ban
       become: true
-      vars:
-        abuseipdb_key: 
