@@ -1,5 +1,7 @@
 - name: Setup interact.leito.tech
   hosts: all
+  vars:
+    blackarch_site_commit: "1cf23dbe93fa9f85b586b8dda84d0320244f262b"
   tasks:
     - name: Install/upgrade archlinux-keyring before full update
       community.general.pacman:
@@ -19,8 +21,8 @@
 
     - name: Download blackarch
       ansible.builtin.get_url:
-        url: https://raw.githubusercontent.com/BlackArch/blackarch-site/master/strap.sh
-        checksum: sha1:https://raw.githubusercontent.com/BlackArch/blackarch-site/master/checksums/strap
+        url: https://raw.githubusercontent.com/BlackArch/blackarch-site/{{ blackarch_site_commit }}/strap.sh
+        checksum: sha1:https://raw.githubusercontent.com/BlackArch/blackarch-site/{{ blackarch_site_commit }}/checksums/strap
         dest: /tmp/blackarch.sh
         mode: '+x'
 
