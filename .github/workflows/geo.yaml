@@ -1,0 +1,85 @@
+name: Build slim geo files
+
+on:
+  workflow_dispatch:
+    inputs:
+      geoip_lists:
+        description: "Comma-separated geoip lists to keep"
+        required: false
+        default: "ir,ru,kz,private"
+      geosite_lists:
+        description: "Comma-separated geosite lists to keep"
+        required: false
+        default: "category-ir,apple,category-ru,private,microsoft"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Prepare output dir
+        run: mkdir -p out
+
+      # ---------- geoip.dat (v2fly/geoip) ----------
+      - name: Clone v2fly/geoip
+        run: git clone --depth 1 https://github.com/v2fly/geoip.git geoip-src
+
+      - name: Run geoip build
+        working-directory: geoip-src
+        run: go run ./ -c ../openwrt/geoip.json
+
+      # ---------- geosite.dat (v2fly/domain-list-community) ----------
+      - name: Clone v2fly/domain-list-community
+        run: git clone --depth 1 https://github.com/v2fly/domain-list-community.git geosite-src
+
+      - name: Run geosite build
+        working-directory: geosite-src
+        run: go run ./main.go --outputdir='../out' --datprofile='../openwrt/geosite.json'
+
+      # ---------- checksums + summary ----------
+      - name: Checksums and sizes
+        working-directory: out
+        run: |
+          sha256sum *.dat | tee SHA256SUMS
+          ls -lh
+
+      - name: Set dated tag
+        id: vars
+        run: echo "date_tag=geo-$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
+
+      - name: Publish dated release (history / rollback)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.date_tag }}
+          name: "Slim geo files ${{ steps.vars.outputs.date_tag }}"
+          body: |
+            geoip.dat lists: ${{ inputs.geoip_lists }}
+            geosite.dat lists: ${{ inputs.geosite_lists }}
+          files: |
+            out/geoip.dat
+            out/geosite.dat
+            out/SHA256SUMS
+
+      - name: Publish/refresh "latest" release (stable link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Slim geo files (latest)"
+          body: |
+            Always-current build, overwritten on every manual run.
+            geoip.dat lists: ${{ inputs.geoip_lists }}
+            geosite.dat lists: ${{ inputs.geosite_lists }}
+          files: |
+            out/geoip.dat
+            out/geosite.dat
+            out/SHA256SUMS
