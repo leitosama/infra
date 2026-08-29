@@ -2,15 +2,6 @@ name: Build slim geo files
 
 on:
   workflow_dispatch:
-    inputs:
-      geoip_lists:
-        description: "Comma-separated geoip lists to keep"
-        required: false
-        default: "ir,ru,kz,private"
-      geosite_lists:
-        description: "Comma-separated geosite lists to keep"
-        required: false
-        default: "category-ir,apple,category-ru,private,microsoft"
 
 permissions:
   contents: write
@@ -62,9 +53,6 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.date_tag }}
           name: "Slim geo files ${{ steps.vars.outputs.date_tag }}"
-          body: |
-            geoip.dat lists: ${{ inputs.geoip_lists }}
-            geosite.dat lists: ${{ inputs.geosite_lists }}
           files: |
             out/geoip.dat
             out/geosite.dat
@@ -77,8 +65,6 @@ jobs:
           name: "Slim geo files (latest)"
           body: |
             Always-current build, overwritten on every manual run.
-            geoip.dat lists: ${{ inputs.geoip_lists }}
-            geosite.dat lists: ${{ inputs.geosite_lists }}
           files: |
             out/geoip.dat
             out/geosite.dat
