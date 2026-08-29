@@ -1,0 +1,12 @@
+[
+  {
+    "name": "geosite.dat",
+    "mode": "allowlist",
+    "lists": [
+      "apple",
+      "category-ru",
+      "private",
+      "microsoft"
+    ]
+  }
+]

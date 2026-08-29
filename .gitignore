@@ -44,3 +44,4 @@ extra-vars.yaml
 .vscode
 
 inventory.ini
+.ansible/.lock

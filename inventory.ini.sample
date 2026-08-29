@@ -1,0 +1,6 @@
+[all:vars]
+fail2ban_abuseipdb_key=<CHANGEME>
+
+[test]
+test.leito.tech ansible_user=root ansible_python_interpreter=/usr/bin/python
+

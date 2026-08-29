@@ -1,0 +1,72 @@
+---
+- name: Setup hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+- name: Change /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "127.0.0.1 {{ inventory_hostname }}"
+    state: present
+    backup: true
+- name: Update package cache
+  block:
+    - name: Update apt
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_pkg_mgr == 'apt'
+    - name: Update dnf
+      ansible.builtin.dnf:
+        update_cache: true
+      when: ansible_pkg_mgr == 'dnf'
+    - name: Update apk
+      community.general.apk:
+        update_cache: true
+      when: ansible_pkg_mgr == 'apk'
+    - name: Update pacman
+      community.general.pacman:
+        update_cache: true
+      when: ansible_pkg_mgr == 'pacman'
+    - name: Update zypper
+      community.general.zypper:
+        name: zypper
+        update_cache: true
+      when: ansible_pkg_mgr == 'zypper'
+- name: Install git and zsh
+  ansible.builtin.package:
+    name:
+      - git
+      - zsh
+    state: present
+- name: Add user {{ basic_user }}
+  ansible.builtin.user:
+    name: "{{ basic_user }}"
+    state: present
+    shell: /bin/zsh
+  when: basic_user != "root"
+- name: Add to group sudo {{ basic_user }}
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    line: "{{ basic_user }} ALL=(ALL) NOPASSWD: ALL"
+    state: present
+    validate: 'visudo -cf %s'
+    backup: true
+  when: basic_user != "root"
+- name: Fix ssh config
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    block: |
+      KexAlgorithms -ecdh-sha2-nistp*,diffie-hellman-group14-sha256
+      HostKeyAlgorithms -ecdsa-sha2-nistp256
+      MACs -umac-64-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1
+    backup: true
+- name: Add ssh key
+  ansible.posix.authorized_key:
+    user: "{{ basic_user }}"
+    state: present
+    key: "{{ basic_ssh_key }}"
+- name: Set MOTD
+  become: true
+  ansible.builtin.copy:
+    src: motd
+    dest: /etc/motd
+    mode: '0600'

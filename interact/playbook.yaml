@@ -1,6 +1,15 @@
 - name: Setup interact.leito.tech
-  hosts: '{{ pb_hosts | default("all") }}'
+  hosts: all
+  vars:
+    blackarch_site_commit: "1cf23dbe93fa9f85b586b8dda84d0320244f262b"
   tasks:
+    - name: Install/upgrade archlinux-keyring before full update
+      community.general.pacman:
+        update_cache: true
+        state: latest
+        name:
+          - archlinux-keyring
+
     - name: Rolling update
       community.general.pacman:
         upgrade: true
@@ -12,8 +21,8 @@
 
     - name: Download blackarch
       ansible.builtin.get_url:
-        url: https://raw.githubusercontent.com/BlackArch/blackarch-site/master/strap.sh
-        checksum: sha1:https://raw.githubusercontent.com/BlackArch/blackarch-site/master/checksums/strap
+        url: https://raw.githubusercontent.com/BlackArch/blackarch-site/{{ blackarch_site_commit }}/strap.sh
+        checksum: sha1:https://raw.githubusercontent.com/BlackArch/blackarch-site/{{ blackarch_site_commit }}/checksums/strap
         dest: /tmp/blackarch.sh
         mode: '+x'
 
@@ -33,18 +42,12 @@
           - gobuster
         state: present
 
-    - name: Check that pdtm installed
-      ansible.builtin.stat:
-        path: /usr/local/bin/pdtm
-      register: pdtm_installed
-
     - name: Install pdtm
       environment:
         GOBIN: /usr/local/bin/
-      ansible.builtin.command: go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
-      register: pdtm_install
-      changed_when: 'pdtm_install.rc == 0'
-      when: 'pdtm_installed.stat.exists == 0'
+      ansible.builtin.command:
+        cmd: go install -v github.com/projectdiscovery/pdtm/cmd/pdtm@latest
+        creates: /usr/local/bin/pdtm
 
     - name: Install ProjectDiscovery Projects
       ansible.builtin.command: /usr/local/bin/pdtm -ia -ip
@@ -52,14 +55,14 @@
       changed_when: 'pd_installed.stderr == "interactsh-server: already installed"'
 
     - name: Download Sliver C2 Installer
-      ansible.builtin.get_url:
+      ansible.builtin.uri:
         url: https://sliver.sh/install
-        dest: /tmp/sliver.sh
-        mode: '+x'
+        return_content: true
+      register: sliver_installer
 
     - name: Install Sliver C2
       ansible.builtin.expect:
-        command: /tmp/sliver.sh
+        command: "echo {{ sliver_installer.content }} | sh -s -- -y"
         creates: /usr/local/bin/sliver
         responses:
           '[Y/n]': Y
