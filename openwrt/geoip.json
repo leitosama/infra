@@ -17,6 +17,15 @@
         "outputName": "geoip.dat",
         "wantedList": ["ru", "kz", "private"]
       }
+    },
+    {
+      "type": "text",
+      "action": "output",
+      "args": {
+        "outputDir": "../out",
+        "outputExtension": ".txt",
+        "wantedList": ["ru", "kz", "private"]
+      }
     }
   ]
 }

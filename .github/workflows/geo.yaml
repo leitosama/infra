@@ -2,6 +2,8 @@ name: Build slim geo files
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'
 
 permissions:
   contents: write
@@ -41,7 +43,7 @@ jobs:
       - name: Checksums and sizes
         working-directory: out
         run: |
-          sha256sum *.dat | tee SHA256SUMS
+          sha256sum *.dat *.txt | tee SHA256SUMS
           ls -lh
 
       - name: Set dated tag
@@ -56,6 +58,8 @@ jobs:
           files: |
             out/geoip.dat
             out/geosite.dat
+            out/*.txt
+            out/*.txt
             out/SHA256SUMS
 
       - name: Publish/refresh "latest" release (stable link)
