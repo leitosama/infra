@@ -1,0 +1,20 @@
+name: Armbian Orange Pi Plus 2E
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: armbian/build@v26.11.0-trunk.54
+        with:
+          armbian_token: ${{ secrets.GITHUB_TOKEN }}
+          armbian_target: image
+          armbian_board: orangepiplus2e
+          armbian_release: trixie
+          armbian_kernel_branch: current
+          armbian_ui: server          # или server
+          armbian_runner_clean: true    # освобождает место на раннере
+          armbian_release_tag: plus2e-trixie-server
