@@ -11,7 +11,7 @@ jobs:
       - uses: armbian/build@v26.11.0-trunk.54
         with:
           armbian_token: ${{ secrets.GITHUB_TOKEN }}
-          armbian_target: image
+          armbian_target: build # docs for GH Actions contain inaccuracies like "Build image or kernel". Docs: https://docs.armbian.com/build-framework/commands/basic/  
           armbian_board: orangepiplus2e
           armbian_release: trixie
           armbian_kernel_branch: current
