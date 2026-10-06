@@ -45,3 +45,12 @@ extra-vars.yaml
 
 inventory.ini
 .ansible/.lock
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/

@@ -17,10 +17,11 @@ NODE = shutil.which("node")
 
 HARNESS = r"""
 const fs = require("fs");
-const [file, mode, hostsJson, dns] = process.argv.slice(1);
+const [file, mode] = process.argv.slice(1);
+const {hosts: hostsList, dns} = JSON.parse(fs.readFileSync(0, "utf8"));
 let src = fs.readFileSync(file, "utf8");
 if (mode === "oneline") src = src.replace(/\r?\n/g, " ");
-const dnsMap = JSON.parse(dns);
+const dnsMap = dns;
 const sandbox = {
   isPlainHostName: h => h.indexOf(".") < 0,
   dnsResolve: h => (h in dnsMap ? dnsMap[h] : null),
@@ -29,15 +30,15 @@ const sandbox = {
 const fn = new Function(...Object.keys(sandbox), src + "\n;return FindProxyForURL;");
 const f = fn(...Object.values(sandbox));
 const out = {};
-for (const h of JSON.parse(hostsJson)) out[h] = f("http://" + h + "/", h);
+for (const h of hostsList) out[h] = f("http://" + h + "/", h);
 console.log(JSON.stringify(out));
 """
 
 
 def run_pac(pac, hosts, mode="multiline", dns=None):
     res = subprocess.run(
-        [NODE, "-e", HARNESS, str(pac), mode, json.dumps(hosts), json.dumps(dns or {})],
-        capture_output=True, text=True)
+        [NODE, "-e", HARNESS, str(pac), mode],
+        input=json.dumps({"hosts": hosts, "dns": dns or {}}), capture_output=True, text=True)
     if res.returncode:
         raise RuntimeError(res.stderr)
     return json.loads(res.stdout)
@@ -96,26 +97,68 @@ class SamplePac(unittest.TestCase):
         for n, line in enumerate(self.pac.read_text().splitlines(), 1):
             self.assertNotIn("//", line.replace("://", ""), "line %d" % n)
 
-    def test_ranges_roundtrip_exact(self):
-        """encoded ranges decode to exactly the merged CIDRs, incl. big values and gaps"""
-        import random
-        sys.path.insert(0, str(HERE))
-        import geo2pac
+    def test_ips_match_python_ipaddress(self):
+        """Differential: PAC answer for random IPs and every CIDR edge +-1 must equal
+        membership according to Python's ipaddress module (independent oracle)."""
         import ipaddress
-        rnd = random.Random(1)
+        import random
+        rnd = random.Random(7)
         nets = [ipaddress.ip_network((rnd.getrandbits(32), rnd.choice((8, 12, 16, 20, 24, 32))), strict=False)
-                for _ in range(3000)]
-        nets += [ipaddress.ip_network("0.0.0.0/32"), ipaddress.ip_network("255.255.255.255/32")]
-        merged = geo2pac.merge_ranges(nets)
-        flat = [x for r in merged for x in r]
-        enc = geo2pac.encode_ranges(merged)
-        script = ('var A=%s;' % json.dumps(geo2pac.ALPHABET)
-                  + 'var s=%s;' % json.dumps(enc)
-                  + r"var o=[],p=0,v=0,sh=0,i,c;for(i=0;i<s.length;i++){c=A.indexOf(s.charAt(i));"
-                    r"v+=(c&31)*Math.pow(2,sh);if(c&32){sh+=5;continue;}p+=v;o.push(p);v=0;sh=0;}"
-                    r"console.log(JSON.stringify(o));")
-        got = json.loads(subprocess.run([NODE, "-e", script], capture_output=True, text=True, check=True).stdout)
-        self.assertEqual(got, flat)
+                for _ in range(300)]
+        # neighbours / overlaps so that range merging is exercised
+        for n in nets[:100]:
+            nxt = int(n.broadcast_address) + 1
+            if nxt < 2 ** 32:
+                nets.append(ipaddress.ip_network((nxt, n.prefixlen), strict=False))
+        # ... and ones separated by exactly one address, which must not be merged
+        for n in nets[100:200]:
+            gap = int(n.broadcast_address) + 2
+            if gap < 2 ** 32:
+                nets.append(ipaddress.ip_network((gap, 32)))
+        nets += [ipaddress.ip_network("0.0.0.0/32"), ipaddress.ip_network("255.255.255.255/32"),
+                 ipaddress.ip_network("0.0.0.0/32"), nets[0].supernet()]
+        d = Path(tempfile.mkdtemp())
+        try:
+            (d / "geosite-x.txt").write_text("domain:example.org\n")
+            (d / "ips.txt").write_text("\n".join(str(n) for n in nets) + "\n")
+            pac = d / "proxy.pac"
+            subprocess.run([sys.executable, HERE / "geo2pac.py", d, "-o", pac], check=True, capture_output=True)
+            ips = {rnd.getrandbits(32) for _ in range(3000)}
+            for n in nets:
+                lo, hi = int(n.network_address), int(n.broadcast_address)
+                ips |= {v for v in (lo - 1, lo, hi, hi + 1) if 0 <= v < 2 ** 32}
+            hosts = [str(ipaddress.ip_address(v)) for v in sorted(ips)]
+            got = run_pac(pac, hosts)
+            wrong = [h for h in hosts
+                     if (got[h] == "DIRECT") != any(ipaddress.ip_address(h) in n for n in nets)]
+            self.assertEqual(wrong[:10], [], "%d of %d IPs disagree" % (len(wrong), len(hosts)))
+        finally:
+            shutil.rmtree(d)
+
+    def test_domains_match_simple_oracle(self):
+        """Differential: suffix/full matching vs a naive implementation."""
+        import random
+        rnd = random.Random(3)
+        labels = ["a", "b", "ru", "com", "x1", "yandex", "apple"]
+        doms = {".".join(rnd.choice(labels) for _ in range(rnd.randint(1, 3))) for _ in range(40)}
+        fulls = {".".join(rnd.choice(labels) for _ in range(rnd.randint(2, 4))) for _ in range(15)}
+        d = Path(tempfile.mkdtemp())
+        try:
+            (d / "geosite-x.txt").write_text(
+                "".join("domain:%s\n" % x for x in doms) + "".join("full:%s\n" % x for x in fulls))
+            (d / "ips.txt").write_text("10.0.0.0/8\n")
+            pac = d / "proxy.pac"
+            subprocess.run([sys.executable, HERE / "geo2pac.py", d, "-o", pac], check=True, capture_output=True)
+            hosts = sorted({".".join(rnd.choice(labels) for _ in range(rnd.randint(2, 5))) for _ in range(3000)}
+                           | doms | fulls)
+            got = run_pac(pac, hosts)  # dnsResolve -> null, so only the lists can say DIRECT
+
+            def oracle(h):
+                return h in fulls or any(h == x or h.endswith("." + x) for x in doms)
+            wrong = [h for h in hosts if (got[h] == "DIRECT") != oracle(h)]
+            self.assertEqual(wrong[:10], [], "%d of %d hosts disagree" % (len(wrong), len(hosts)))
+        finally:
+            shutil.rmtree(d)
 
     def test_proxy_override(self):
         pac = self.tmp / "other.pac"

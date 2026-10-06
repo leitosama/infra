@@ -57,24 +57,13 @@ def merge_ranges(nets):
     return merged
 
 
-ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-
-
-def encode_ranges(merged):
-    """Flat ascending [lo0,hi0,lo1,hi1,...] -> delta varint string.
-
-    Every delta is split into 5-bit groups, low first; bit 5 marks "more groups".
-    """
-    out, prev = [], 0
-    for lo, hi in merged:
-        for v in (lo, hi):
-            d, prev = v - prev, v
-            while True:
-                part, d = d & 31, d >> 5
-                out.append(ALPHABET[part | (32 if d else 0)])
-                if not d:
-                    break
-    return "".join(out)
+def range_deltas(merged):
+    """Flat ascending [lo0,hi0,lo1,hi1,...] as comma separated hex deltas."""
+    prev, out = 0, []
+    for v in (x for r in merged for x in r):
+        out.append(format(v - prev, "x"))
+        prev = v
+    return ",".join(out)
 
 
 def js_chunked(s, width=100):
@@ -114,19 +103,13 @@ var DOMAINS = {domains};   /* domain: suffix match */
 var FULL = {full};         /* full: exact match */
 var KEYWORDS = {keywords};
 var REGEXPS = {regexps};
-/* IPv4 ranges as a delta varint string, see encode_ranges() in geo2pac.py */
+/* IPv4 ranges: hex deltas, see range_deltas() in geo2pac.py. No atob in PAC engines, so plain parseInt. */
 var RANGES_ENC = {ranges};
 var RANGES = (function (s) {{
-  var A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-  var out = [], prev = 0, v = 0, shift = 0, i, c;
-  for (i = 0; i < s.length; i++) {{
-    c = A.indexOf(s.charAt(i));
-    v += (c & 31) * Math.pow(2, shift);
-    if (c & 32) {{ shift += 5; continue; }}
-    prev += v;
+  var a = s.split(","), out = [], prev = 0, i;
+  for (i = 0; i < a.length; i++) {{
+    prev += parseInt(a[i], 16);
     out.push(prev);
-    v = 0;
-    shift = 0;
   }}
   return out;
 }})(RANGES_ENC);
@@ -224,7 +207,7 @@ def main():
         full=js_wrapped_list(js_str(x) for x in sorted(full)),
         keywords=js_list(js_str(x) for x in sorted(set(keyword))),
         regexps=js_list(js_str(x) for x in sorted(set(regexp))),
-        ranges=js_chunked(encode_ranges(merged)),
+        ranges=js_chunked(range_deltas(merged)),
     ))
     print("%s: %d domains, %d full, %d keywords, %d regexps, %d ranges" % (
         a.output, len(domain), len(full), len(set(keyword)), len(set(regexp)), len(merged)))

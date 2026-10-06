@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Load a PAC into real Chromium through the Proxy Switcher "inline" code path.
-//   node openwrt/pac-chrome-test/run.js proxy.pac [--oneline] [url ...]
+//   node pac-chrome-test/run.js proxy.pac [--oneline] [url ...]
 // Needs playwright + Chromium (PLAYWRIGHT_BROWSERS_PATH). Exit code 1 on PAC errors.
 // Default urls are IP literals: one outside the lists (should hit the proxy) and one private.
 const path = require('path');
