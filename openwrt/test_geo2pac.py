@@ -51,7 +51,7 @@ class SamplePac(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp())
         (cls.tmp / "geosite-ru.txt").write_text(
-            "domain:ya.ru:@cn\nfull:www.example.org\nkeyword:yandex\n"
+            "domain:ya.ru:@cn\ndomain:in-addr.arpa\ndomain:ip6.arpa\nfull:www.example.org\nkeyword:yandex\n"
             "regexp:^foo\\d+\\.bar\\.com$\n")
         (cls.tmp / "private.txt").write_text("10.0.0.0/8\n192.168.0.0/16\n::1/128\n")
         (cls.tmp / "ru.txt").write_text("5.3.0.0/16\n5.4.0.0/16\n")
@@ -71,6 +71,13 @@ class SamplePac(unittest.TestCase):
         "localhost": "DIRECT", "[::1]": "DIRECT", "ru.resolved": "DIRECT",
         "google.com": "SOCKS5 127.0.0.1:9050", "UPPER.GOOGLE.COM": "SOCKS5 127.0.0.1:9050",
         "nxdomain.test": "SOCKS5 127.0.0.1:9050",
+        # range edges (5.3.0.0-5.4.255.255, 10/8, 192.168/16)
+        "5.2.255.255": "SOCKS5 127.0.0.1:9050", "5.3.0.0": "DIRECT",
+        "5.4.255.255": "DIRECT", "5.5.0.0": "SOCKS5 127.0.0.1:9050",
+        "9.255.255.255": "SOCKS5 127.0.0.1:9050", "10.0.0.0": "DIRECT",
+        "10.255.255.255": "DIRECT", "11.0.0.0": "SOCKS5 127.0.0.1:9050",
+        "192.168.255.255": "DIRECT", "192.169.0.0": "SOCKS5 127.0.0.1:9050",
+        "1.0.0.1.in-addr.arpa": "DIRECT",
     }
     DNS = {"ru.resolved": "5.3.1.1", "google.com": "142.250.1.1"}
 
@@ -88,6 +95,27 @@ class SamplePac(unittest.TestCase):
     def test_no_line_comments(self):
         for n, line in enumerate(self.pac.read_text().splitlines(), 1):
             self.assertNotIn("//", line.replace("://", ""), "line %d" % n)
+
+    def test_ranges_roundtrip_exact(self):
+        """encoded ranges decode to exactly the merged CIDRs, incl. big values and gaps"""
+        import random
+        sys.path.insert(0, str(HERE))
+        import geo2pac
+        import ipaddress
+        rnd = random.Random(1)
+        nets = [ipaddress.ip_network((rnd.getrandbits(32), rnd.choice((8, 12, 16, 20, 24, 32))), strict=False)
+                for _ in range(3000)]
+        nets += [ipaddress.ip_network("0.0.0.0/32"), ipaddress.ip_network("255.255.255.255/32")]
+        merged = geo2pac.merge_ranges(nets)
+        flat = [x for r in merged for x in r]
+        enc = geo2pac.encode_ranges(merged)
+        script = ('var A=%s;' % json.dumps(geo2pac.ALPHABET)
+                  + 'var s=%s;' % json.dumps(enc)
+                  + r"var o=[],p=0,v=0,sh=0,i,c;for(i=0;i<s.length;i++){c=A.indexOf(s.charAt(i));"
+                    r"v+=(c&31)*Math.pow(2,sh);if(c&32){sh+=5;continue;}p+=v;o.push(p);v=0;sh=0;}"
+                    r"console.log(JSON.stringify(o));")
+        got = json.loads(subprocess.run([NODE, "-e", script], capture_output=True, text=True, check=True).stdout)
+        self.assertEqual(got, flat)
 
     def test_proxy_override(self):
         pac = self.tmp / "other.pac"
