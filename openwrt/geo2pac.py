@@ -57,6 +57,33 @@ def merge_ranges(nets):
     return merged
 
 
+def range_deltas(merged):
+    """Flat ascending [lo0,hi0,lo1,hi1,...] as comma separated hex deltas."""
+    prev, out = 0, []
+    for v in (x for r in merged for x in r):
+        out.append(format(v - prev, "x"))
+        prev = v
+    return ",".join(out)
+
+
+def js_chunked(s, width=100):
+    """JS string literal split over short lines so editors cope with it."""
+    parts = [js_str(s[i:i + width]) for i in range(0, len(s), width)] or ['""']
+    return "\n  + ".join(parts)
+
+
+def js_wrapped_list(items, width=100):
+    lines, cur = [], ""
+    for it in items:
+        if cur and len(cur) + len(it) + 1 > width:
+            lines.append(cur)
+            cur = ""
+        cur += it + ","
+    if cur:
+        lines.append(cur)
+    return "[\n  " + "\n  ".join(lines).rstrip(",") + "\n]"
+
+
 def js_list(items):
     return "[" + ",".join(items) + "]"
 
@@ -76,7 +103,16 @@ var DOMAINS = {domains};   /* domain: suffix match */
 var FULL = {full};         /* full: exact match */
 var KEYWORDS = {keywords};
 var REGEXPS = {regexps};
-var RANGES = {ranges};     /* flat sorted [lo0,hi0,lo1,hi1,...] of IPv4 as uint32 */
+/* IPv4 ranges: hex deltas, see range_deltas() in geo2pac.py. No atob in PAC engines, so plain parseInt. */
+var RANGES_ENC = {ranges};
+var RANGES = (function (s) {{
+  var a = s.split(","), out = [], prev = 0, i;
+  for (i = 0; i < a.length; i++) {{
+    prev += parseInt(a[i], 16);
+    out.push(prev);
+  }}
+  return out;
+}})(RANGES_ENC);
 
 function ipToNum(ip) {{
   var p = ip.split(".");
@@ -154,24 +190,27 @@ def main():
     full = {h for h in full if not covered(h)}
     domain = {h for h in domain if not any(
         ".".join(h.split(".")[i:]) in domain for i in range(1, len(h.split("."))))}
+    # reverse-DNS zones (in-addr.arpa, ip6.arpa, ...) are never browsed: one rule instead of ~100
+    if any(h.endswith(".arpa") for h in domain):
+        domain = {h for h in domain if not h.endswith(".arpa")} | {"arpa"}
     for r in regexp:
         re.compile(r)
 
     nets = [n for f in ip_files for n in parse_cidrs(f)]
-    flat = [str(x) for lo, hi in merge_ranges(nets) for x in (lo, hi)]
+    merged = merge_ranges(nets)
 
     a.output.write_text(TEMPLATE.format(
         site_lists=", ".join(f.stem[len("geosite-"):] for f in site_files),
         ip_lists=", ".join(f.stem for f in ip_files),
         proxy=js_str(a.proxy),
-        domains=js_list(js_str(x) for x in sorted(domain)),
-        full=js_list(js_str(x) for x in sorted(full)),
+        domains=js_wrapped_list(js_str(x) for x in sorted(domain)),
+        full=js_wrapped_list(js_str(x) for x in sorted(full)),
         keywords=js_list(js_str(x) for x in sorted(set(keyword))),
         regexps=js_list(js_str(x) for x in sorted(set(regexp))),
-        ranges=js_list(flat),
+        ranges=js_chunked(range_deltas(merged)),
     ))
     print("%s: %d domains, %d full, %d keywords, %d regexps, %d ranges" % (
-        a.output, len(domain), len(full), len(set(keyword)), len(set(regexp)), len(flat) // 2))
+        a.output, len(domain), len(full), len(set(keyword)), len(set(regexp)), len(merged)))
 
 
 if __name__ == "__main__":
