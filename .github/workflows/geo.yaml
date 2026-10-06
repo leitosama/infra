@@ -48,6 +48,9 @@ jobs:
       - name: Build PAC
         run: python3 openwrt/geo2pac.py out -p "SOCKS5 127.0.0.1:9050" -o out/proxy.pac
 
+      - name: Test PAC
+        run: python3 openwrt/test_geo2pac.py out/proxy.pac
+
       # ---------- checksums + summary ----------
       - name: Checksums and sizes
         working-directory: out
