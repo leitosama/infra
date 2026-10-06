@@ -37,13 +37,22 @@ jobs:
 
       - name: Run geosite build
         working-directory: geosite-src
-        run: go run ./main.go --outputdir='../out' --datprofile='../openwrt/geosite.json'
+        run: |
+          LISTS=$(jq -r '[.[].lists[]] | unique | join(",")' ../openwrt/geosite.json)
+          go run ./main.go --outputdir='../out-site' --datprofile='../openwrt/geosite.json' --exportlists="$LISTS"
+          cp ../out-site/geosite.dat ../out/geosite.dat
+          # prefix text lists so they don't clash with geoip's (e.g. private.txt)
+          for f in ../out-site/*.txt; do cp "$f" "../out/geosite-$(basename "$f")"; done
+
+      # ---------- proxy.pac (DIRECT for the lists above, proxy for the rest) ----------
+      - name: Build PAC
+        run: python3 openwrt/geo2pac.py out -p "SOCKS5 127.0.0.1:9050" -o out/proxy.pac
 
       # ---------- checksums + summary ----------
       - name: Checksums and sizes
         working-directory: out
         run: |
-          sha256sum *.dat *.txt | tee SHA256SUMS
+          sha256sum *.dat *.txt *.pac | tee SHA256SUMS
           ls -lh
 
       - name: Set dated tag
@@ -59,7 +68,7 @@ jobs:
             out/geoip.dat
             out/geosite.dat
             out/*.txt
-            out/*.txt
+            out/proxy.pac
             out/SHA256SUMS
 
       - name: Publish/refresh "latest" release (stable link)
@@ -72,4 +81,5 @@ jobs:
           files: |
             out/geoip.dat
             out/geosite.dat
+            out/proxy.pac
             out/SHA256SUMS
