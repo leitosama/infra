@@ -5,6 +5,20 @@
 jq '.outbounds |= map(del(.settings, .streamSettings))' /etc/xray/config.json
 ```
 
+## Subscription update
+`sub-update.sh` (copy of `/etc/xray/sub-update.sh`, cron `0 * * * *`) rebuilds the `proxy-NN` outbounds of
+`/etc/xray/config.json` from `/etc/xray/subscriptions.txt` (one https URL per line, `#` comments). Each URL must
+return an xray JSON config; every non-freedom/blackhole/dns outbound in it becomes `proxy-NN` in file order.
+- only `protocol`, `settings`, `streamSettings` are replaced; flat vless settings are converted to `vnext` (xray 25.1)
+- a new reality `shortId`/`spiderX` alone is ignored (providers randomize them per request)
+- a failed subscription keeps its old outbounds (`subscriptions.state` maps URL -> tags), orphan `proxy-*` are removed
+- `xray -test` before applying, restart only on change, `config.json.prev` restored if xray does not start
+```
+scp -O openwrt/sub-update.sh root@192.168.1.1:/etc/xray/
+ssh root@192.168.1.1 /etc/xray/sub-update.sh --dry-run   # show changes, touch nothing
+ssh root@192.168.1.1 logread -e sub-update
+```
+
 ## PAC for Proxy Switcher
 `proxy.pac` is built by `geo.yaml` (`geo2pac.py`) from the same lists as the geo files:
 geosite/geoip matches go `DIRECT`, everything else goes to `SOCKS5 127.0.0.1:9050`.
