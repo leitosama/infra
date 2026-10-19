@@ -5,10 +5,9 @@
 # return an xray JSON config (an object or an array of them). Every outbound in it
 # that is not freedom/blackhole/dns/loopback becomes proxy-NN, numbered in file order.
 #
-# Only protocol, settings and streamSettings of proxy-NN are replaced: tag and any
-# other local keys of the existing outbound stay. A new reality shortId/spiderX alone
-# (providers randomize them per request) does not count as a change. Flat settings (address/port/id at
-# the top, newer xray) are converted to vnext/servers for the installed xray.
+# protocol, settings and streamSettings of proxy-NN are taken from the subscription as is:
+# tag and any other local keys of the existing outbound stay. A new reality shortId/spiderX
+# alone (providers randomize them per request) does not count as a change.
 # proxy-* outbounds that no subscription produces are removed.
 #
 # A subscription that fails keeps its previous outbounds; which tags belong to which
@@ -78,18 +77,12 @@ jq --slurpfile subs subs.json --slurpfile state state.json '
 	def isproxy: (.tag // "") | startswith("proxy-");
 	# providers pick a random reality shortId/spiderX per request: not a change
 	def noise: if .realitySettings then del(.realitySettings.shortId, .realitySettings.spiderX) else . end;
-	def flat:
-		if (.protocol | IN("vless", "vmess")) and .settings.vnext == null and .settings.address != null then
-			.settings |= {vnext: [{address, port, users: [del(.address, .port)]}]}
-		elif (.protocol | IN("trojan", "shadowsocks")) and .settings.servers == null and .settings.address != null then
-			.settings |= {servers: [.]}
-		else . end;
 	. as $c
 	| ($c.outbounds | map(select(isproxy)) | INDEX(.tag)) as $old
 	| [$subs[0] | to_entries[] | .key as $i | .value
 		| {url, obs: (.obs // [($state[0][.url] // ["proxy-\($i + 1 | tostring | if length < 2 then "0" + . else . end)"])[]
 			| $old[.] | select(.)])}]
-	| [.[] | .url as $u | .obs[] | {url: $u, ob: (. | flat)}]
+	| [.[] | .url as $u | .obs[] | {url: $u, ob: .}]
 	| to_entries | map(.value + {tag: "proxy-\(.key + 1 | tostring | if length < 2 then "0" + . else . end)"}) as $new
 	| ($new | map(.ob as $ob | $old[.tag] as $was | ($was // $ob) + {tag, protocol: $ob.protocol, settings: $ob.settings}
 		| if $ob.streamSettings == null then del(.streamSettings)

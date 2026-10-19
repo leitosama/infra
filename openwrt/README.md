@@ -38,7 +38,7 @@ jq '.outbounds |= map(del(.settings, .streamSettings))' /etc/xray/config.json
 `sub-update.sh` (copy of `/etc/xray/sub-update.sh`, cron `0 * * * *`) rebuilds the `proxy-NN` outbounds of
 `/etc/xray/config.json` from `/etc/xray/subscriptions.txt` (one https URL per line, `#` comments). Each URL must
 return an xray JSON config; every non-freedom/blackhole/dns outbound in it becomes `proxy-NN` in file order.
-- only `protocol`, `settings`, `streamSettings` are replaced; flat vless settings are converted to `vnext` (xray 25.1)
+- `protocol`, `settings`, `streamSettings` are copied from the subscription as is (flat vless settings need xray ≥ 26)
 - a new reality `shortId`/`spiderX` alone is ignored (providers randomize them per request)
 - a failed subscription keeps its old outbounds (`subscriptions.state` maps URL -> tags), orphan `proxy-*` are removed
 - `xray -test` before applying, restart only on change, `config.json.prev` restored if xray does not start
