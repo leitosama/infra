@@ -1,5 +1,34 @@
 # OpenWRT
 
+Router: netis NX31 (`mediatek/filogic`, profile `netis_nx31`), OpenWrt 25.12.5 (`apk`), xray-core 26.3.27.
+
+## Upgrade
+Custom files outside `/etc/config` are kept via `/etc/sysupgrade.conf`:
+```
+/etc/xray/
+/etc/firewall.xray
+/etc/hotplug.d/iface/99-xray-tproxy
+/etc/hotplug.d/iface/30-vpnroute
+/etc/hotplug.d/net/30-vpnroute
+/usr/share/v2ray/
+/root/
+```
+`owut upgrade` rebuilds the image from user-installed packages only, so packages that came with the old
+image are dropped. After the upgrade reinstall them and start xray:
+```
+apk update && apk add xray-core kmod-nft-tproxy curl ip-full bind-dig coreutils-base64 kmod-tun
+/etc/init.d/xray enable && /etc/init.d/xray restart && fw4 reload
+```
+Keep `/etc/config/xray` (`datadir /usr/share/v2ray`, no `confdir`) and ignore `xray.apk-new`.
+
+## Geo update
+`geo-update.sh` (copy of `/etc/xray/geo-update.sh`, cron `17 4 * * *`) downloads geo dat files and the `geoip:` lists
+from the `latest` release, checks them against `SHA256SUMS`, and rebuilds the nft set `inet xray direct_dst`.
+```
+scp -O openwrt/geo-update.sh root@192.168.1.1:/etc/xray/
+ssh root@192.168.1.1 /etc/xray/geo-update.sh
+```
+
 ## Strip config 
 ```
 jq '.outbounds |= map(del(.settings, .streamSettings))' /etc/xray/config.json

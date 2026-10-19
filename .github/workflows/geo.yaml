@@ -84,5 +84,6 @@ jobs:
           files: |
             out/geoip.dat
             out/geosite.dat
+            out/*.txt
             out/proxy.pac
             out/SHA256SUMS
